@@ -1,0 +1,12 @@
+{:paths ["src"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.0"}
+        tempfile {:mvn/version "0.2.0"}
+        nrepl {:mvn/version "0.6.0"}
+        leiningen-core {:mvn/version "2.9.0"}
+        ;; org.clojure/tools.deps.alpha {:mvn/version "0.6.496"}
+        ;; boot {:mvn/version "2.8.3"}
+        }
+ :aliases
+ {:test {:extra-deps {eftest {:mvn/version "0.5.7"}}
+         :extra-paths ["test"]}
+  :ci {:main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]]),(run-tests,(find-tests,\"test\"))"]}}}
