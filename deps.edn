@@ -9,4 +9,11 @@
  :aliases
  {:test {:extra-deps {eftest {:mvn/version "0.5.7"}}
          :extra-paths ["test"]}
-  :ci {:main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]]),(run-tests,(find-tests,\"test\"))"]}}}
+  :ci {:main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]]),(run-tests,(find-tests,\"test\"))"]}
+  :deploy {:extra-deps {deps-deploy {:mvn/version "RELEASE"}}
+           :main-opts ["-m" "deps-deploy.deps-deploy" "deploy" "campfire.jar"]}
+  :install {:extra-deps {deps-deploy {:mvn/version "RELEASE"}}
+            :main-opts ["-m" "deps-deploy.deps-deploy" "install" "campfire.jar"]}
+  :pack {:extra-deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git"
+                                       :sha "81b9e47d992b17aa3e3af1a47aed1f0287ebe9b8"}}
+         :main-opts ["-m"]}}}
