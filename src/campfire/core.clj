@@ -38,3 +38,8 @@
       ;; build-boot (boot/make-project local-path butld-boot)
       ;; deps-edn (deps/make-project local-path deps-edn)
       :else (throw (Exception. "Cannot detect project type")))))
+
+(defn init [execution]
+  (let [project (-> execution ::path detect)
+        proc (process project (::port execution))]
+    proc))
