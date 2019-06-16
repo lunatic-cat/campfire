@@ -30,16 +30,18 @@
         (print-flush *out* out)
         (-> value last (or "") edn/read-string)))))
 
-(defn detect [path]
-  (let [local-path (io/file path)
-        project-clj (find-file-by-name local-path "project.clj")
-        build-boot (find-file-by-name local-path "build.boot")
-        deps-edn (find-file-by-name local-path "deps.edn")]
-    (cond
-      project-clj (lein/make-project local-path project-clj)
-      ;; build-boot (boot/make-project local-path butld-boot)
-      ;; deps-edn (deps/make-project local-path deps-edn)
-      :else (throw (Exception. "Cannot detect project type")))))
+(defn detect
+  ([path] (detect path {}))
+  ([path opts]
+   (let [local-path (io/file path)
+         project-clj (find-file-by-name local-path "project.clj")
+         build-boot (find-file-by-name local-path "build.boot")
+         deps-edn (find-file-by-name local-path "deps.edn")]
+     (cond
+       project-clj (lein/make-project local-path project-clj opts)
+       ;; build-boot (boot/make-project local-path butld-boot opts)
+       ;; deps-edn (deps/make-project local-path deps-edn opts)
+       :else (throw (Exception. "Cannot detect project type"))))))
 
 (defn init [opts]
   (let [m (meta opts)

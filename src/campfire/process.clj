@@ -10,6 +10,18 @@
 
 (declare make-proc)
 
+(defn- port-available? [port]
+  (try (Socket. host port) false
+       (catch IOException e true)))
+
+(defn- wait-for-closed
+  "Reset works too quickly, block until TIME_WAIT"
+  [port]
+  (loop [n 10]
+    (when-not (port-available? port)
+      (Thread/sleep n)
+      (recur (* 2 n)))))
+
 (defrecord Proc [project port ^Process process nrepl]
   proj/Project
   (classpath [this]
@@ -26,7 +38,9 @@
     (make-proc (:project this) (:port this)))
   (halt [this]
     (or (.close (:nrepl this))
-        (.destroy (:process this)))))
+        (.destroy (:process this))
+        (wait-for-closed (:port this))
+        this)))
 
 (defn- exec
   [cmd]
@@ -36,10 +50,6 @@
   (let [cp (string/join File/pathSeparator classpath)
         cmd (str "java -cp " cp " clojure.main -m nrepl.cmdline -b " host " -p " port)]
     (exec cmd)))
-
-(defn- port-available? [port]
-  (try (Socket. host port) false
-       (catch IOException e true)))
 
 (defn- wait-for-nrepl [port]
   (loop [n 10]

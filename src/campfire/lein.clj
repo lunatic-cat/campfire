@@ -13,11 +13,9 @@
   (classpath [this]
     (lein-classpath/get-classpath (:project this))))
 
-(defn make-project [source project-clj]
-  (let [project (lein-project/read (io/reader project-clj))
-        ;; project (assoc project :local-repo (abspath (tempdir)))
-        project (assoc project :root (abspath source))
-        ;; clsp-files (lein-classpath/resolve-managed-dependencies
-        ;;             :dependencies :managed-dependencies project)
-        ]
-    (->Project source project)))
+(defn make-project
+  ([source project-clj] (make-project source project-clj {}))
+  ([source project-clj opts]
+   (let [project (lein-project/read (io/reader project-clj))
+         project (assoc (merge project opts) :root (abspath source))]
+     (->Project source project))))
