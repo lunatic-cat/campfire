@@ -2,16 +2,19 @@
   (:require [clojure.string :as string]
             [nrepl.core :as nrepl]
             [campfire.project :as proj])
-  (:import [java.io File]
+  (:import [java.io File IOException]
            [java.net Socket ConnectException]))
 
 (def host "127.0.0.1")
 (def timeout 1000)
 
 (declare make-proc)
-(declare halt)
 
 (defrecord Proc [project port ^Process process nrepl]
+  proj/Project
+  (classpath [this]
+    (proj/classpath (:project this)))
+
   proj/Evaluable
   (eval [this form]
     (-> (nrepl/client nrepl timeout)
@@ -22,8 +25,8 @@
   (init [this]
     (make-proc (:project this) (:port this)))
   (halt [this]
-    (.close (:nrepl this))
-    (.destroy (:process this))))
+    (or (.close (:nrepl this))
+        (.destroy (:process this)))))
 
 (defn- exec
   [cmd]
@@ -34,6 +37,10 @@
         cmd (str "java -cp " cp " clojure.main -m nrepl.cmdline -b " host " -p " port)]
     (exec cmd)))
 
+(defn- port-available? [port]
+  (try (Socket. host port) false
+       (catch IOException e true)))
+
 (defn- wait-for-nrepl [port]
   (loop [n 10]
     (if-let [nrepl (try (nrepl/connect :host host :port port)
@@ -43,6 +50,7 @@
           (recur (* 2 n))))))
 
 (defn make-proc [project port]
-  (let [process (init (proj/classpath project) port)
+  (let [process (when (port-available? port)
+                  (init (proj/classpath project) port))
         nrepl (wait-for-nrepl port)]
     (->Proc project port process nrepl)))

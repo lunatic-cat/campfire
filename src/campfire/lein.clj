@@ -17,6 +17,7 @@
   (let [project (lein-project/read (io/reader project-clj))
         ;; project (assoc project :local-repo (abspath (tempdir)))
         project (assoc project :root (abspath source))
-        clsp-files (lein-classpath/resolve-managed-dependencies
-              :dependencies :managed-dependencies project)]
+        ;; clsp-files (lein-classpath/resolve-managed-dependencies
+        ;;             :dependencies :managed-dependencies project)
+        ]
     (->Project source project)))

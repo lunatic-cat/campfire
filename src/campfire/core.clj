@@ -1,6 +1,7 @@
 (ns campfire.core
   (:refer-clojure :exclude [eval])
   (:require [campfire.lein :as lein]
+            [campfire.autorequire :as autorequire]
             [campfire.project :as proj]
             [campfire.process :as proc]
             [campfire.file :refer [find-file-by-name]]
@@ -17,10 +18,11 @@
   (proc/make-proc project port))
 
 (defn halt [process]
-  (proc/halt process))
+  (proj/halt process))
 
 (defn eval [process form]
-  (let [{:keys [err out value status] :as msg} (proj/eval process form)]
+  (let [require-form (autorequire/with-require-code form)
+        {:keys [err out value status] :as msg} (proj/eval process require-form)]
     (if (status "eval-error")
       (throw (Exception. err))
       (do
@@ -39,7 +41,8 @@
       ;; deps-edn (deps/make-project local-path deps-edn)
       :else (throw (Exception. "Cannot detect project type")))))
 
-(defn init [execution]
-  (let [project (-> execution ::path detect)
-        proc (process project (::port execution))]
-    proc))
+(defn init [opts]
+  (let [m (meta opts)
+        project (-> opts ::path detect)
+        proc (process project (::port opts))]
+    (with-meta proc m)))

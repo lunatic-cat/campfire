@@ -11,7 +11,7 @@
          :extra-paths ["test"]}
   :ci {:main-opts ["-e" "(require,'[eftest.runner,:refer,[find-tests,run-tests]]),(run-tests,(find-tests,\"test\"))"]}
   :deploy {:extra-deps {deps-deploy {:mvn/version "RELEASE"}}
-           :main-opts ["-m" "deps-deploy.deps-deploy" "deploy" "campfire.jar"]}
+           :main-opts ["-m" "deps-deploy.deps-deploy" "deploy" "campfire.jar", "true"]}
   :install {:extra-deps {deps-deploy {:mvn/version "RELEASE"}}
             :main-opts ["-m" "deps-deploy.deps-deploy" "install" "campfire.jar"]}
   :pack {:extra-deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git"
