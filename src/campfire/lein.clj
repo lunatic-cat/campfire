@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [eval])
   (:require [campfire.project :as proj]
             [campfire.file :refer [abspath]]
-            [tempfile.core :refer [tempdir]]
             [clojure.java.io :as io]
             [leiningen.core.classpath :as lein-classpath]
             [leiningen.core.project :as lein-project]))
