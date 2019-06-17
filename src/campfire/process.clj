@@ -10,26 +10,26 @@
   (:import [java.io File IOException PrintWriter]
            [java.net Socket ConnectException]))
 
-(def host "127.0.0.1")
-(def timeout 1000)
+(def default-host "127.0.0.1")
+(def default-timeout 1000)
 
 (declare init-proc)
 (declare make-proc)
 (declare halt-proc)
 
-(defn- port-available? [port]
+(defn- port-available? [{:keys [host port]}]
   (try (Socket. host port) false
        (catch IOException e true)))
 
 (defn- wait-for-closed
   "Reset works too quickly, block until TIME_WAIT"
-  [port]
+  [opts]
   (loop [n 10]
-    (when-not (port-available? port)
+    (when-not (port-available? opts)
       (Thread/sleep n)
       (recur (* 2 n)))))
 
-(defn- eval-with-nrepl [nrepl form]
+(defn- eval-with-nrepl [{:keys [nrepl timeout]} form]
   (-> (nrepl/client nrepl timeout)
       (nrepl/message {:op :eval :code (pr-str form)})
       nrepl/combine-responses))
@@ -39,7 +39,7 @@
     (.write w s)
     (.flush w)))
 
-(defrecord Proc [project port ^Process process nrepl]
+(defrecord Proc [project port ^Process process nrepl timeout host]
   proj/Project
   (classpath [this]
     (proj/classpath (:project this)))
@@ -47,8 +47,7 @@
   proj/Evaluable
   (eval [this form]
     (let [with-require-form (autorequire/with-require-code form)
-          {:keys [err out value status] :as msg} (eval-with-nrepl (:nrepl this)
-                                                                  with-require-form)]
+          {:keys [err out value status]} (eval-with-nrepl this with-require-form)]
       (if (status "eval-error")
         (throw (Exception. err))
         (do
@@ -62,7 +61,8 @@
   (suspend [this]
     this)
   (resume [this opts old-opts]
-    (when-not (= opts old-opts)
+    (if (= opts old-opts)
+      this
       (do (halt-proc this)
           (init-proc opts))))
   (halt [this]
@@ -72,12 +72,12 @@
   [cmd]
   (.exec (Runtime/getRuntime) (into-array ["/bin/sh" "-c" cmd])))
 
-(defn init [classpath port]
+(defn init [classpath {:keys [host port]}]
   (let [cp (string/join File/pathSeparator classpath)
         cmd (str "java -cp " cp " clojure.main -m nrepl.cmdline -b " host " -p " port)]
     (exec cmd)))
 
-(defn- wait-for-nrepl [port]
+(defn- wait-for-nrepl [{:keys [host port]}]
   (loop [n 10]
     (if-let [nrepl (try (nrepl/connect :host host :port port)
                         (catch ConnectException e nil))]
@@ -85,20 +85,25 @@
       (do (Thread/sleep n)
           (recur (* 2 n))))))
 
-(defn make-proc [project port]
-  (let [process (when (port-available? port)
-                  (init (proj/classpath project) port))
-        nrepl (wait-for-nrepl port)]
-    (->Proc project port process nrepl)))
+(defn make-proc [project {:keys [port timeout host]
+                          :or {timeout default-timeout host default-host}
+                          :as opts}]
+  (let [process (when (port-available? opts)
+                  (init (proj/classpath project) opts))
+        nrepl (wait-for-nrepl opts)]
+    (->Proc project port process nrepl timeout host)))
 
 (defn halt-proc [proc]
-  (or (.close @@(:nrepl proc))
-      (.destroy (:process proc))
-      (wait-for-closed (:port proc))
+  (do (some-> proc :nrepl .close)
+      (when-let [p (:process proc)]
+        (.destroy p)
+        (wait-for-closed proc))
       proc))
 
 (defn init-proc [opts]
   (let [m (meta opts)
         project (-> opts :campfire.core/path detect/detect)
-        proc (make-proc project (:campfire.core/port opts))]
+        proc (make-proc project {:port (:campfire.core/port opts)
+                                 :host (:campfire.core/host opts)
+                                 :timeout (:campfire.core/timeout opts)})]
     (with-meta proc m)))
