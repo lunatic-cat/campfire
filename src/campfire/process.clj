@@ -1,14 +1,21 @@
 (ns campfire.process
+  (:refer-clojure :exclude [eval])
   (:require [clojure.string :as string]
             [nrepl.core :as nrepl]
+            [campfire.autorequire :as autorequire]
+            [campfire.file :refer [find-file-by-name]]
+            [clojure.edn :as edn]
+            [campfire.detect :as detect]
             [campfire.project :as proj])
-  (:import [java.io File IOException]
+  (:import [java.io File IOException PrintWriter]
            [java.net Socket ConnectException]))
 
 (def host "127.0.0.1")
 (def timeout 1000)
 
+(declare init-proc)
 (declare make-proc)
+(declare halt-proc)
 
 (defn- port-available? [port]
   (try (Socket. host port) false
@@ -22,6 +29,16 @@
       (Thread/sleep n)
       (recur (* 2 n)))))
 
+(defn- eval-with-nrepl [nrepl form]
+  (-> (nrepl/client nrepl timeout)
+      (nrepl/message {:op :eval :code (pr-str form)})
+      nrepl/combine-responses))
+
+(defn- print-flush [^PrintWriter w s]
+  (when s
+    (.write w s)
+    (.flush w)))
+
 (defrecord Proc [project port ^Process process nrepl]
   proj/Project
   (classpath [this]
@@ -29,18 +46,27 @@
 
   proj/Evaluable
   (eval [this form]
-    (-> (nrepl/client nrepl timeout)
-        (nrepl/message {:op :eval :code (pr-str form)})
-        nrepl/combine-responses))
+    (let [with-require-form (autorequire/with-require-code form)
+          {:keys [err out value status] :as msg} (eval-with-nrepl (:nrepl this)
+                                                                  with-require-form)]
+      (if (status "eval-error")
+        (throw (Exception. err))
+        (do
+          (print-flush *err* err)
+          (print-flush *out* out)
+          (-> value last (or "") edn/read-string)))))
 
   proj/Lifecycle
   (init [this]
     (make-proc (:project this) (:port this)))
+  (suspend [this]
+    this)
+  (resume [this opts old-opts]
+    (when-not (= opts old-opts)
+      (do (halt-proc this)
+          (init-proc opts))))
   (halt [this]
-    (or (.close (:nrepl this))
-        (.destroy (:process this))
-        (wait-for-closed (:port this))
-        this)))
+    (halt-proc this)))
 
 (defn- exec
   [cmd]
@@ -64,3 +90,15 @@
                   (init (proj/classpath project) port))
         nrepl (wait-for-nrepl port)]
     (->Proc project port process nrepl)))
+
+(defn halt-proc [proc]
+  (or (.close @@(:nrepl proc))
+      (.destroy (:process proc))
+      (wait-for-closed (:port proc))
+      proc))
+
+(defn init-proc [opts]
+  (let [m (meta opts)
+        project (-> opts :campfire.core/path detect/detect)
+        proc (make-proc project (:campfire.core/port opts))]
+    (with-meta proc m)))

@@ -12,4 +12,6 @@
 (defprotocol Lifecycle
   :extend-via-metadata true
   (init [_] "Starts process with nrepl")
+  (suspend [_] "Pretend nrepl stopped")
+  (resume [_ opts old-opts] "Relaunch nrepl")
   (halt [_] "Kills process"))

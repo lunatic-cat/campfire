@@ -1,7 +1,6 @@
 (ns campfire.lein
   (:refer-clojure :exclude [eval])
   (:require [campfire.project :as proj]
-            [campfire.process :as process]
             [campfire.file :refer [abspath]]
             [tempfile.core :refer [tempdir]]
             [clojure.java.io :as io]
