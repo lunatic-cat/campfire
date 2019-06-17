@@ -11,6 +11,7 @@
            [java.net Socket ConnectException]))
 
 (def default-host "127.0.0.1")
+(def default-port 7878)
 (def default-timeout 1000)
 
 (declare init-proc)
@@ -58,7 +59,7 @@
 
   proj/Lifecycle
   (init [this]
-    (make-proc (:project this) (:port this)))
+    (make-proc (:project this) (select-keys this [:port :host :timeout])))
   (suspend [this]
     this)
   (resume [this opts old-opts]
@@ -86,13 +87,12 @@
       (do (Thread/sleep n)
           (recur (* 2 n))))))
 
-(defn make-proc [project {:keys [port timeout host]
-                          :or {timeout default-timeout host default-host}
-                          :as opts}]
-  (let [process (when (port-available? opts)
-                  (init (proj/classpath project) opts))
-        nrepl (wait-for-nrepl opts)]
-    (->Proc project port process nrepl timeout host)))
+(defn make-proc [project {:keys [port timeout host]}]
+  (let [host-port {:port (or port default-port) :host (or host default-host)}
+        process (when (port-available? host-port)
+                  (init (proj/classpath project) host-port))
+        nrepl (wait-for-nrepl host-port)]
+    (->Proc project port process nrepl (or timeout default-timeout) host)))
 
 (defn halt-proc [proc]
   (or (some-> proc :nrepl .close)
