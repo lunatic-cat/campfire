@@ -18,7 +18,8 @@
 (declare halt-proc)
 
 (defn- port-available? [{:keys [host port]}]
-  (try (Socket. host port) false
+  (try (with-open [_s (Socket. host port)]
+         false)
        (catch IOException e true)))
 
 (defn- wait-for-closed
@@ -94,7 +95,7 @@
     (->Proc project port process nrepl timeout host)))
 
 (defn halt-proc [proc]
-  (do (some-> proc :nrepl .close)
+  (or (some-> proc :nrepl .close)
       (when-let [p (:process proc)]
         (.destroy p)
         (wait-for-closed proc))
