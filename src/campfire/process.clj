@@ -50,7 +50,7 @@
   (eval [this form]
     (let [with-require-form (autorequire/with-require-code form)
           {:keys [err out value status]} (eval-with-nrepl this with-require-form)]
-      (if (status "eval-error")
+      (if (and status (status "eval-error"))
         (throw (Exception. err))
         (do
           (print-flush *err* err)
